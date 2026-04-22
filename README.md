@@ -58,7 +58,7 @@ SRT_PATH = "source.srt"
 
 ## Gotchas
 
-- **First scheduled runs will fail until you finish setup.** Once you create your repo from the template, GitHub starts firing the cron immediately — runs before you've set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and dropped in a `source.srt` will show as red in the Actions tab. That's expected; they'll start passing once everything's in place.
+- **Scheduled runs without setup are silent no-ops.** Once you create your repo from the template, GitHub starts firing the cron immediately. Before you've set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and dropped in a `source.srt`, those scheduled runs exit cleanly with a log line like `Setup incomplete. Missing: …` and don't send failure emails. Manual `Run workflow` clicks, on the other hand, fail visibly if setup is incomplete — so you can catch any mistakes when you test.
 - **Cron drift.** GitHub's scheduled workflows drift 5–20 min on good days and sometimes skip entire hours. With the target pinned to each window's start, every cron run inside the window is an opportunity to fire — so a miss only happens if cron goes fully dark for the whole window.
 - **SRT speaker labels are inconsistent.** Most SRTs tag speakers on only some lines (e.g. `VINCENT: …`, `ALICE: …`). The bot preserves whatever's in the text — it doesn't invent speaker info.
 - **Stage directions are filtered.** Cues that are purely annotations like `[SIREN WAILING]` or `[APPLAUSE]` are skipped, and `<i>…</i>` italics tags are stripped. Inline annotations embedded inside dialogue are left alone.

@@ -13,9 +13,20 @@ WINDOWS = [            # (label, start_hour, end_hour) — local to TZ, 24h, end
 SRT_PATH = "source.srt"
 # ==============================================
 
-BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_PATH = "state.json"
+
+def check_setup():
+    """Returns a list of missing setup items — empty list means ready to post."""
+    missing = []
+    if not BOT_TOKEN:
+        missing.append("TELEGRAM_BOT_TOKEN secret")
+    if not CHAT_ID:
+        missing.append("TELEGRAM_CHAT_ID secret")
+    if not os.path.exists(SRT_PATH):
+        missing.append(f"{SRT_PATH} file")
+    return missing
 
 def target_minute(label, start_h, end_h):
     """Post time for this window. Pinned to the window start so *any* cron run
@@ -77,8 +88,18 @@ def pending_window(state):
     return None
 
 if __name__ == "__main__":
+    manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+
+    missing = check_setup()
+    if missing:
+        print(f"Setup incomplete. Missing: {', '.join(missing)}")
+        # Scheduled runs exit cleanly so templates and not-yet-configured forks don't
+        # spam failure emails. Manual runs exit with a nonzero code so setup mistakes
+        # are caught visibly when someone clicks Run workflow to test.
+        sys.exit(1 if manual else 0)
+
     # Manual trigger: always post, don't touch state.
-    if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+    if manual:
         msg = pick_block()
         send(msg)
         print("Posted (manual):", msg)
