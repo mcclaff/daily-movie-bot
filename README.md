@@ -1,12 +1,14 @@
 # Daily Movie Bot
 
-Posts random 2–3 line excerpts from an SRT subtitle file into a Telegram channel at randomized times each day. Runs for free on GitHub Actions — no server required.
+Posts random 2–3 line excerpts from an SRT subtitle file into a Telegram channel a few times a day, inside windows you define. Runs for free on GitHub Actions — no server required.
 
 Good for: sharing memorable dialogue from a favorite movie, show, or podcast transcript with a group, one snippet at a time.
 
 ## How it works
 
-Three configurable posting windows per day. For each window, today's date is hashed into a deterministic pseudo-random target minute. A cron job runs every 30 minutes, and the first one that lands at or after the target fires that window's post. A small `state.json` (auto-committed by the workflow) tracks which windows have fired today so nothing double-posts and cron skips can be caught up.
+Three configurable posting windows per day. A cron job runs every 30 minutes; the first run that lands inside a window fires that window's post. A small `state.json` (auto-committed by the workflow) tracks which windows have fired today so nothing double-posts and cron skips can be caught up by the next run in the window.
+
+Post times land near the *start* of each window rather than at a random minute — this gives every cron run during the window a chance to fire, instead of gating on a single 30-min slot around a random target. The trade-off is a small bit of daily time variety in exchange for significantly better reliability against GitHub cron drift.
 
 Timezones are handled by `zoneinfo`, so DST is automatic.
 
@@ -51,13 +53,13 @@ SRT_PATH = "source.srt"
 ```
 
 - `TZ` — any [IANA timezone name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
-- `WINDOWS` — list of `(label, start_hour, end_hour)` tuples. Hours are local, 24-hour clock, end exclusive. Each window posts once per day at a random minute inside it. Labels must be unique; they're used as hash salts.
+- `WINDOWS` — list of `(label, start_hour, end_hour)` tuples. Hours are local, 24-hour clock, end exclusive. Each window posts once per day at the first cron run that lands inside it. Labels just need to be unique.
 - Fewer or more windows work fine — the code loops over whatever's in the list.
 
 ## Gotchas
 
 - **First scheduled runs will fail until you finish setup.** Once you create your repo from the template, GitHub starts firing the cron immediately — runs before you've set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and dropped in a `source.srt` will show as red in the Actions tab. That's expected; they'll start passing once everything's in place.
-- **Cron drift.** GitHub's scheduled workflows drift 5–20 min on good days and sometimes skip entire hours. The state-file logic lets a later cron run in the same window catch up, but a cron blackout for the full remaining window still results in a missed post.
+- **Cron drift.** GitHub's scheduled workflows drift 5–20 min on good days and sometimes skip entire hours. With the target pinned to each window's start, every cron run inside the window is an opportunity to fire — so a miss only happens if cron goes fully dark for the whole window.
 - **SRT speaker labels are inconsistent.** Most SRTs tag speakers on only some lines (e.g. `VINCENT: …`, `ALICE: …`). The bot preserves whatever's in the text — it doesn't invent speaker info.
 - **Stage directions are filtered.** Cues that are purely annotations like `[SIREN WAILING]` or `[APPLAUSE]` are skipped, and `<i>…</i>` italics tags are stripped. Inline annotations embedded inside dialogue are left alone.
 - **Variety.** A typical 1,500-line feature-film SRT yields a few thousand possible 2–3 line blocks. At three posts a day, that's multi-year variety before repeats become likely.

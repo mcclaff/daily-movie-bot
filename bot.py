@@ -1,4 +1,4 @@
-import hashlib, json, os, random, re, sys
+import json, os, random, re, sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import pysrt, requests
@@ -18,12 +18,9 @@ CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 STATE_PATH = "state.json"
 
 def target_minute(label, start_h, end_h):
-    """Deterministic random minute-of-day (local to TZ) for today's `label` window."""
-    today = datetime.now(TZ).date().isoformat()
-    h = int(hashlib.sha256(f"{today}-{label}".encode()).hexdigest(), 16)
-    # Keep a 30-min tail so there's always some fire window even if cron limps in late.
-    span = max((end_h - start_h) * 60 - 30, 1)
-    return start_h * 60 + (h % span)
+    """Post time for this window. Pinned to the window start so *any* cron run
+    inside the window fires, maximizing resilience against GitHub cron drift."""
+    return start_h * 60
 
 def load_state():
     today = datetime.now(TZ).date().isoformat()
